@@ -150,6 +150,31 @@ def main():
 
     df = pd.DataFrame([asdict(a) for a in todas_amostras])
 
+    df = pd.DataFrame([asdict(a) for a in todas_amostras])
+
+    # 1) Make sure valor is string for cleaning (handles numbers too)
+    s = df['valor'].astype(str).str.strip()
+
+    # 2) Fix the weird double-comma issue: "8,,98" -> "8,98"
+    s = s.str.replace(',,', ',', regex=False)
+
+    # 3) Convert Brazilian decimal comma to dot: "8,98" -> "8.98"
+    #    (If you *also* have thousand separators like "1.234,56", tell me; we can handle that too.)
+    s = s.str.replace(',', '.', regex=False)
+
+    # 4) Remove obvious non-values (customize as you see them appear)
+    #    This catches: "", "nan", "None", "-", etc.
+    bad_tokens = {'', 'nan', 'none', '-', '—', 'na', 'n/a', 'nd'}
+    s_lower = s.str.lower()
+    s = s.where(~s_lower.isin(bad_tokens), other=np.nan)
+
+    # 5) Convert to numeric. Anything invalid becomes NaN.
+    df['valor'] = pd.to_numeric(s, errors='coerce')
+
+    # 6) Drop rows where valor is NaN (invalid/garbage)
+    df = df.dropna(subset=['valor']).reset_index(drop=True)
+
+
     # Ensure output directory exists
     output_dir = Path("./output")
     output_dir.mkdir(parents=True, exist_ok=True)
